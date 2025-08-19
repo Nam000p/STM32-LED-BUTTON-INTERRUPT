@@ -42,7 +42,10 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-
+uint32_t last_press_tick = 0;     // Store the last button press time for debounce
+uint32_t press_start_tick = 0;    // Store the time when the button was first held
+uint8_t  click_count = 0;         // Count the number of button clicks
+uint8_t  led_state = 0;           // FSM state: 0 = All off, 1 = LED1 on, 2 = LED2 on, 3 = LED3 on
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -50,7 +53,24 @@ void SystemClock_Config(void);
 static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 /* USER CODE BEGIN PFP */
-
+/**
+ * @brief  Set the LED output state.
+ *
+ * This function controls three LEDs based on the given state value.
+ * Each state corresponds to a specific LED configuration.
+ *
+ * @param[in]  state  Desired LED state:
+ *                    - 0: All LEDs OFF
+ *                    - 1: LED1 ON, LED2 OFF, LED3 OFF
+ *                    - 2: LED2 ON, LED1 OFF, LED3 OFF
+ *                    - 3: LED3 ON, LED1 OFF, LED2 OFF
+ *
+ * @note  This function directly calls LEDx_H()/LEDx_L() macros,
+ *        which must be defined to control the GPIO pins.
+ *
+ * @retval None
+ */
+void set_led_state(uint8_t state);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -222,13 +242,73 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_GPIO_EXTI_Callback(uint8_t GPIO_Pin)
+void set_led_state(uint8_t state)
 {
-	if (GPIO_Pin == B1_BUTTON_PIN)
-	{
-
-	}
+    switch(state)
+    {
+        case 0: // All off
+            LED1_L(); LED2_L(); LED3_L();
+            break;
+        case 1: // LED1 on
+            LED1_H(); LED2_L(); LED3_L();
+            break;
+        case 2: // LED2 on
+            LED1_L(); LED2_H(); LED3_L();
+            break;
+        case 3: // LED3 on
+            LED1_L(); LED2_L(); LED3_H();
+            break;
+    }
 }
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    if (GPIO_Pin == B1_BUTTON_PIN)
+    {
+        uint32_t now = HAL_GetTick();
+
+        // Debounce: ignore presses shorter than 50ms
+        if ((now - last_press_tick) < 50) return;
+        last_press_tick = now;
+
+        // If the button is pressed down
+        if (HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_SET)
+        {
+            press_start_tick = now;   // Save the time when the press started
+        }
+        else // Button is released
+        {
+            uint32_t press_duration = now - press_start_tick;
+
+            if (press_duration >= 3000) // Long hold > 3 seconds
+            {
+                led_state = 0; // Turn off all LEDs
+                SetLedState(led_state);
+                click_count = 0;
+            }
+            else
+            {
+                // Handle single / double click
+                click_count++;
+
+                if (click_count == 1)
+                {
+                    // Start a short timer to decide between
+                    // single click and double click
+                    // (can use a HAL timer or check in the main loop)
+                }
+                else if (click_count == 2)
+                {
+                    // Double click → switch to next LED
+                    led_state++;
+                    if (led_state > 3) led_state = 1;
+                    SetLedState(led_state);
+                    click_count = 0;
+                }
+            }
+        }
+    }
+}
+
 /* USER CODE END 4 */
 
  /* MPU Configuration */

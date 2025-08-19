@@ -23,7 +23,7 @@
 #define __LED_CONTROL_H
 
 /* Includes ----------------------------------------------------------- */
-
+#include "main.h"
 /* Public defines ----------------------------------------------------- */
 #define BOARD_NUCLEO_H7A3ZI_Q        // Use this if working with Nucleo H7A3ZI-Q board
 //#define BOARD_STM32F407_DISCOVERY      // Use this if working with STM32F407 Discovery board
