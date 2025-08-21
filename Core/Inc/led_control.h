@@ -23,7 +23,7 @@
 #define __LED_CONTROL_H
 
 /* Includes ----------------------------------------------------------- */
-
+#include "main.h"
 /* Public defines ----------------------------------------------------- */
 #define BOARD_NUCLEO_H7A3ZI_Q        // Use this if working with Nucleo H7A3ZI-Q board
 //#define BOARD_STM32F407_DISCOVERY      // Use this if working with STM32F407 Discovery board
@@ -34,7 +34,7 @@
 
     // --- NUCLEO H7A3ZI-Q board pin mapping ---
     #define LED1_GPIO_PORT         GPIOB       // LED1 is connected to GPIOB
-    #define LED1_PIN               GPIO_PIN_7  // LED1 uses pin PB7
+    #define LED1_PIN               GPIO_PIN_0  // LED1 uses pin PB0
     #define LED2_GPIO_PORT         GPIOE       // LED2 is connected to GPIOE
     #define LED2_PIN               GPIO_PIN_1  // LED2 uses pin PE1
     #define LED3_GPIO_PORT         GPIOB       // LED3 is connected to GPIOB
@@ -61,7 +61,8 @@
 #endif
 /* Public enumerate/structure ----------------------------------------- */
 
-/* Public macros -------------------------------------------------/**
+/* Public macros ------------------------------------------------- */
+/*
  * @brief  Turn LED1 ON.
  *
  * @attention  This macro sets the corresponding GPIO pin of LED1 to HIGH.
@@ -111,38 +112,37 @@
  *
  * @attention Make sure GPIO pins are initialized before calling.
  */
- void turn_on_led1(void);
- /**
-  * @brief  Turn ON LED2
-  *
-  * @attention Make sure GPIO pins are initialized before calling.
-  */
- void turn_on_led2(void);
- /**
-  * @brief  Turn ON LED3
-  *
-  * @attention Make sure GPIO pins are initialized before calling.
-  */
- void turn_on_led3(void);
- /**
-  * @brief  Turn OFF LED1
-  *
-  * @attention Make sure GPIO pins are initialized before calling.
-  */
- void turn_off_led1(void);
- /**
-  * @brief  Turn OFF LED2
-  *
-  * @attention Make sure GPIO pins are initialized before calling.
-  */
- void turn_off_led2(void);
- /**
-  * @brief  Turn OFF LED3
-  *
-  * @attention Make sure GPIO pins are initialized before calling.
-  */
- void turn_off_led3(void);
-
+void turn_on_led1(void);
+/**
+ * @brief  Turn ON LED2
+ *
+ * @attention Make sure GPIO pins are initialized before calling.
+ */
+void turn_on_led2(void);
+/**
+ * @brief  Turn ON LED3
+ *
+ * @attention Make sure GPIO pins are initialized before calling.
+ */
+void turn_on_led3(void);
+/**
+ * @brief  Turn OFF LED1
+ *
+ * @attention Make sure GPIO pins are initialized before calling.
+ */
+void turn_off_led1(void);
+/**
+ * @brief  Turn OFF LED2
+ *
+ * @attention Make sure GPIO pins are initialized before calling.
+ */
+void turn_off_led2(void);
+/**
+ * @brief  Turn OFF LED3
+ *
+ * @attention Make sure GPIO pins are initialized before calling.
+ */
+void turn_off_led3(void);
 #endif // __LED_CONTROL_H
 
 /* End of file -------------------------------------------------------- */

@@ -31,7 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-
+//#define TEST
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -41,16 +41,50 @@
 
 /* Private variables ---------------------------------------------------------*/
 
-/* USER CODE BEGIN PV */
+TIM_HandleTypeDef htim6;
+TIM_HandleTypeDef htim7;
 
+/* USER CODE BEGIN PV */
+uint8_t count = 0;
+uint8_t state = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MPU_Config(void);
 static void MX_GPIO_Init(void);
+static void MX_TIM6_Init(void);
+static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
-
+/**
+ * @brief  Set the LED output state.
+ *
+ * This function controls three LEDs based on the given state value.
+ * Each state corresponds to a specific LED configuration.
+ *
+ * @param[in]  state  Desired LED state:
+ *                    - 0: LED1 ON, LED2 OFF, LED3 OFF
+ *                    - 1: LED2 ON, LED1 OFF, LED3 OFF
+ *                    - 2: LED3 ON, LED1 OFF, LED2 OFF
+ *                    - 3: All LEDs OFF
+ *
+ * @note  This function directly calls LEDx_H()/LEDx_L() macros,
+ *        which must be defined to control the GPIO pins.
+ *
+ * @retval None
+ */
+void set_led_state(uint8_t state);
+/**
+ * @brief  Generate a delay in milliseconds using TIM7
+ *
+ * This function uses TIM6 as a simple delay generator.
+ * It loops for the specified number of milliseconds,
+ * each iteration waits until the timer counter reaches 999 (≈1ms).
+ *
+ * @param  ms  Number of milliseconds to delay
+ * @retval None
+ */
+void delay_ms(int ms);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -90,6 +124,8 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
+  MX_TIM6_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -98,7 +134,11 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
-
+	  set_led_state(count);
+	  if (HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_RESET)
+	  {
+		  HAL_TIM_Base_Start_IT(&htim7);
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -169,6 +209,82 @@ void SystemClock_Config(void)
 }
 
 /**
+  * @brief TIM6 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM6_Init(void)
+{
+
+  /* USER CODE BEGIN TIM6_Init 0 */
+
+  /* USER CODE END TIM6_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM6_Init 1 */
+
+  /* USER CODE END TIM6_Init 1 */
+  htim6.Instance = TIM6;
+  htim6.Init.Prescaler = 2799;
+  htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim6.Init.Period = 5000;
+  htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim6, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM6_Init 2 */
+
+  /* USER CODE END TIM6_Init 2 */
+
+}
+
+/**
+  * @brief TIM7 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM7_Init(void)
+{
+
+  /* USER CODE BEGIN TIM7_Init 0 */
+
+  /* USER CODE END TIM7_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM7_Init 1 */
+
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 41999;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 20000;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* USER CODE END TIM7_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -187,14 +303,14 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOE_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_14, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_14, GPIO_PIN_SET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_SET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
@@ -222,13 +338,141 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_GPIO_EXTI_Callback(uint8_t GPIO_Pin)
+void set_led_state(uint8_t state)
 {
-	if (GPIO_Pin == B1_BUTTON_PIN)
+    switch(state)
+    {
+        case 0: // LED1 on
+        	turn_on_led1();
+        	turn_off_led2();
+        	turn_off_led3();
+            break;
+        case 1: // LED2 on
+            turn_off_led1();
+            turn_on_led2();
+            turn_off_led3();
+            break;
+        case 2: // LED3 on
+        	turn_off_led1();
+        	turn_off_led2();
+        	turn_on_led3();
+            break;
+        default: // All LED off
+        	turn_off_led1();
+        	turn_off_led2();
+        	turn_off_led3();
+        	break;
+    }
+}
+void delay_ms(int ms)
+{
+	for (int i = 0; i < ms; i++)
 	{
-
+		htim7.Instance->CNT = 0;
+		HAL_TIM_Base_Start(&htim7);
+		while(htim7.Instance->CNT < 999);
+		HAL_TIM_Base_Stop(&htim7);
 	}
 }
+#ifdef TEST
+#define LONG_PRESS_THRESHOLD 60        // 60 * 50ms = 3000ms = 3s
+
+volatile uint8_t count_click = 0;
+volatile uint8_t buttonPressed = 0;
+volatile uint16_t pressDuration = 0;   // đơn vị: số lần tràn timer 50ms
+volatile uint8_t longPressDetected = 0;
+
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+    if (GPIO_Pin == B1_BUTTON_PIN)
+    {
+        if (HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_RESET) // FALLING - nhấn xuống
+        {
+            buttonPressed = 1;
+            pressDuration = 0;
+            longPressDetected = 0;
+
+            HAL_TIM_Base_Start_IT(&htim6); // bật timer check nhấn giữ
+        }
+        else // RISING - nhả nút
+        {
+            if (buttonPressed)
+            {
+                if (!longPressDetected)
+                {
+                    // Xử lý click/double click tại lúc nhả
+                    count_click++;
+                    if (count_click == 2)
+                    {
+                        count = (count + 1) % 3;
+                        set_led_state(count);
+                        count_click = 0; // reset double click
+                    }
+                }
+                buttonPressed = 0;
+                pressDuration = 0;
+            }
+        }
+    }
+}
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Instance == TIM6)
+    {
+        if (buttonPressed)
+        {
+            pressDuration++;
+            if (!longPressDetected && pressDuration >= LONG_PRESS_THRESHOLD)
+            {
+                // Nhấn giữ 3s
+                set_led_state(3);   // tắt tất cả LED
+                longPressDetected = 1;
+                count_click = 0; // huỷ luôn double click nếu đã nhấn giữ
+            }
+        }
+        else
+        {
+            HAL_TIM_Base_Stop_IT(&htim6);
+        }
+    }
+}
+#else
+volatile uint8_t count_click = 0;
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
+{
+	if ((GPIO_Pin == B1_BUTTON_PIN) && (state == 0))
+	{
+		count_click++;
+		if (count_click == 3)
+			count_click = 1;
+		HAL_TIM_Base_Start_IT(&htim6);
+		state = 1;
+	}
+	else
+	{
+		__NOP();
+	}
+}
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if (htim->Instance == TIM6)
+	{
+		if(HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_RESET)
+		{
+			if (count_click == 2)
+				count = (count + 1) % 3;
+			state = 0;
+			HAL_TIM_Base_Stop_IT(&htim6);
+		}
+	}
+	if (htim->Instance == TIM7)
+	{
+		count = -1;
+		HAL_TIM_Base_Stop_IT(&htim7);
+	}
+}
+#endif
+
 /* USER CODE END 4 */
 
  /* MPU Configuration */

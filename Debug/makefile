@@ -60,8 +60,8 @@ all: main-build
 main-build: led_button_interrupt.elf secondary-outputs
 
 # Tool invocations
-led_button_interrupt.elf led_button_interrupt.map: $(OBJS) $(USER_OBJS) C:\Work\STM32\LED_ButtonInterrupt\STM32H7A3ZITXQ_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
-	arm-none-eabi-gcc -o "led_button_interrupt.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"C:\Work\STM32\LED_ButtonInterrupt\STM32H7A3ZITXQ_FLASH.ld" --specs=nosys.specs -Wl,-Map="led_button_interrupt.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+led_button_interrupt.elf led_button_interrupt.map: $(OBJS) $(USER_OBJS) C:\Work\STM32\led_button_interrupt\STM32H7A3ZITXQ_FLASH.ld makefile objects.list $(OPTIONAL_TOOL_DEPS)
+	arm-none-eabi-gcc -o "led_button_interrupt.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m7 -T"C:\Work\STM32\led_button_interrupt\STM32H7A3ZITXQ_FLASH.ld" --specs=nosys.specs -Wl,-Map="led_button_interrupt.map" -Wl,--gc-sections -static --specs=nano.specs -mfpu=fpv5-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 

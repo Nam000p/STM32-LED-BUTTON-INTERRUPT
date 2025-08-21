@@ -1,0 +1,6 @@
+../Core/Src/led_control.c:35:6:turn_on_led1	8	static
+../Core/Src/led_control.c:39:6:turn_on_led2	8	static
+../Core/Src/led_control.c:43:6:turn_on_led3	8	static
+../Core/Src/led_control.c:47:6:turn_off_led1	8	static
+../Core/Src/led_control.c:51:6:turn_off_led2	8	static
+../Core/Src/led_control.c:55:6:turn_off_led3	8	static
