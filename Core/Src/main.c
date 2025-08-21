@@ -22,7 +22,6 @@
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 #include "led_control.h"
-#include "stdbool.h"
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -43,11 +42,11 @@
 /* Private variables ---------------------------------------------------------*/
 
 TIM_HandleTypeDef htim6;
+TIM_HandleTypeDef htim7;
 
 /* USER CODE BEGIN PV */
-bool stateDouble = false;
-bool stateLong = false;
 uint8_t count = 0;
+uint8_t state = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -55,6 +54,7 @@ void SystemClock_Config(void);
 static void MPU_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_TIM6_Init(void);
+static void MX_TIM7_Init(void);
 /* USER CODE BEGIN PFP */
 /**
  * @brief  Set the LED output state.
@@ -75,7 +75,7 @@ static void MX_TIM6_Init(void);
  */
 void set_led_state(uint8_t state);
 /**
- * @brief  Generate a delay in milliseconds using TIM6
+ * @brief  Generate a delay in milliseconds using TIM7
  *
  * This function uses TIM6 as a simple delay generator.
  * It loops for the specified number of milliseconds,
@@ -125,6 +125,7 @@ int main(void)
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
   MX_TIM6_Init();
+  MX_TIM7_Init();
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -133,6 +134,11 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  set_led_state(count);
+	  if (HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_RESET)
+	  {
+		  HAL_TIM_Base_Start_IT(&htim7);
+	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -241,6 +247,44 @@ static void MX_TIM6_Init(void)
 }
 
 /**
+  * @brief TIM7 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM7_Init(void)
+{
+
+  /* USER CODE BEGIN TIM7_Init 0 */
+
+  /* USER CODE END TIM7_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+
+  /* USER CODE BEGIN TIM7_Init 1 */
+
+  /* USER CODE END TIM7_Init 1 */
+  htim7.Instance = TIM7;
+  htim7.Init.Prescaler = 41999;
+  htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim7.Init.Period = 20000;
+  htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim7, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM7_Init 2 */
+
+  /* USER CODE END TIM7_Init 2 */
+
+}
+
+/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -266,7 +310,7 @@ static void MX_GPIO_Init(void)
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
-  GPIO_InitStruct.Mode = GPIO_MODE_IT_FALLING;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING_FALLING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
@@ -313,7 +357,7 @@ void set_led_state(uint8_t state)
         	turn_off_led2();
         	turn_on_led3();
             break;
-        case 3: // All LED off
+        default: // All LED off
         	turn_off_led1();
         	turn_off_led2();
         	turn_off_led3();
@@ -324,58 +368,53 @@ void delay_ms(int ms)
 {
 	for (int i = 0; i < ms; i++)
 	{
-		htim6.Instance->CNT = 0;
-		HAL_TIM_Base_Start_IT(&htim6);
-		while(htim6.Instance->CNT < 999);
-		HAL_TIM_Base_Stop_IT(&htim6);
+		htim7.Instance->CNT = 0;
+		HAL_TIM_Base_Start(&htim7);
+		while(htim7.Instance->CNT < 999);
+		HAL_TIM_Base_Stop(&htim7);
 	}
 }
 #ifdef TEST
+#define LONG_PRESS_THRESHOLD 60        // 60 * 50ms = 3000ms = 3s
+
 volatile uint8_t count_click = 0;
 volatile uint8_t buttonPressed = 0;
 volatile uint16_t pressDuration = 0;   // đơn vị: số lần tràn timer 50ms
 volatile uint8_t longPressDetected = 0;
 
-#define LONG_PRESS_THRESHOLD 60        // 60 * 50ms = 3000ms = 3s
-
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
     if (GPIO_Pin == B1_BUTTON_PIN)
     {
-        if (HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_RESET) // nhấn xuống
+        if (HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_RESET) // FALLING - nhấn xuống
         {
             buttonPressed = 1;
             pressDuration = 0;
             longPressDetected = 0;
 
-            count_click++;
-            if (count_click == 3)
-                count_click = 1;
-
-            HAL_TIM_Base_Start_IT(&htim6); // bắt đầu timer 50ms
+            HAL_TIM_Base_Start_IT(&htim6); // bật timer check nhấn giữ
         }
-        else // nhả nút
+        else // RISING - nhả nút
         {
             if (buttonPressed)
             {
-                // Nếu không phải long press thì mới xét click/double click
                 if (!longPressDetected)
                 {
+                    // Xử lý click/double click tại lúc nhả
+                    count_click++;
                     if (count_click == 2)
                     {
-                        set_led_state(count);
                         count = (count + 1) % 3;
+                        set_led_state(count);
+                        count_click = 0; // reset double click
                     }
                 }
-
-                // reset khi nhả
                 buttonPressed = 0;
                 pressDuration = 0;
             }
         }
     }
 }
-
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
     if (htim->Instance == TIM6)
@@ -383,31 +422,31 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         if (buttonPressed)
         {
             pressDuration++;
-
             if (!longPressDetected && pressDuration >= LONG_PRESS_THRESHOLD)
             {
-                // ====== Xử lý nhấn giữ 3s ======
-                set_led_state(0); // ví dụ: tắt tất cả LED
-                longPressDetected = 1; // đánh dấu đã xử lý long press
+                // Nhấn giữ 3s
+                set_led_state(3);   // tắt tất cả LED
+                longPressDetected = 1;
+                count_click = 0; // huỷ luôn double click nếu đã nhấn giữ
             }
         }
         else
         {
-            HAL_TIM_Base_Stop_IT(&htim6); // tiết kiệm khi không nhấn
+            HAL_TIM_Base_Stop_IT(&htim6);
         }
     }
 }
-
 #else
-int count_click = 0;
+volatile uint8_t count_click = 0;
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-	if (GPIO_Pin == B1_BUTTON_PIN)
+	if ((GPIO_Pin == B1_BUTTON_PIN) && (state == 0))
 	{
 		count_click++;
 		if (count_click == 3)
 			count_click = 1;
 		HAL_TIM_Base_Start_IT(&htim6);
+		state = 1;
 	}
 	else
 	{
@@ -418,13 +457,18 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
 	if (htim->Instance == TIM6)
 	{
-		if (count_click == 2)
+		if(HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_RESET)
 		{
-			set_led_state(count);
-			count = (count + 1) % 3;
-			stateDouble = false;
+			if (count_click == 2)
+				count = (count + 1) % 3;
+			state = 0;
+			HAL_TIM_Base_Stop_IT(&htim6);
 		}
-		HAL_TIM_Base_Stop_IT(&htim6);
+	}
+	if (htim->Instance == TIM7)
+	{
+		count = -1;
+		HAL_TIM_Base_Stop_IT(&htim7);
 	}
 }
 #endif
