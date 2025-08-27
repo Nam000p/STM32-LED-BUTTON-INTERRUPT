@@ -60,7 +60,20 @@
 
 #endif
 /* Public enumerate/structure ----------------------------------------- */
+typedef volatile enum
+{
+	NO_CLICK,
+	SINGLE_CLICK,
+	DOUBLE_CLICK,
+	HOLD,
+	RELEASE
+} CLICK_STATE;
 
+typedef enum
+{
+	FALSE,
+	TRUE
+} _BOOL;
 /* Public macros ------------------------------------------------- */
 /*
  * @brief  Turn LED1 ON.

@@ -31,7 +31,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-//#define TEST
+
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -46,7 +46,11 @@ TIM_HandleTypeDef htim7;
 
 /* USER CODE BEGIN PV */
 uint8_t count = 0;
-uint8_t state = 0;
+CLICK_STATE click_state;
+_BOOL increment = FALSE;
+
+uint32_t press_tick = 0;
+uint8_t click_count = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -75,16 +79,18 @@ static void MX_TIM7_Init(void);
  */
 void set_led_state(uint8_t state);
 /**
- * @brief  Generate a delay in milliseconds using TIM7
+ * @brief  Handle button actions based on click state.
  *
- * This function uses TIM6 as a simple delay generator.
- * It loops for the specified number of milliseconds,
- * each iteration waits until the timer counter reaches 999 (≈1ms).
+ * Updates the global variable "count" depending on the button action:
+ *  - SINGLE_CLICK → reset LEDs (count = 0)
+ *  - DOUBLE_CLICK → cycle through LEDs (count = 0 → 1 → 2 → 0),
+ *                   but only if not in HOLD mode
+ *  - HOLD         → turn off all LEDs (special value count = 100)
  *
- * @param  ms  Number of milliseconds to delay
- * @retval None
+ * The "increment" flag ensures that DOUBLE_CLICK increments only once
+ * per valid event.
  */
-void delay_ms(int ms);
+void detect_button_state(CLICK_STATE click_state);
 /* USER CODE END PFP */
 
 /* Private user code ---------------------------------------------------------*/
@@ -134,11 +140,11 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  // Process the button input and update "count" based on click state
+	  detect_button_state(click_state);
+
+	  // Set the LED behavior according to the current value of "count"
 	  set_led_state(count);
-	  if (HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_RESET)
-	  {
-		  HAL_TIM_Base_Start_IT(&htim7);
-	  }
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
@@ -226,9 +232,9 @@ static void MX_TIM6_Init(void)
 
   /* USER CODE END TIM6_Init 1 */
   htim6.Instance = TIM6;
-  htim6.Init.Prescaler = 2799;
+  htim6.Init.Prescaler = 27999;
   htim6.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim6.Init.Period = 5000;
+  htim6.Init.Period = 30000;
   htim6.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim6) != HAL_OK)
   {
@@ -264,9 +270,9 @@ static void MX_TIM7_Init(void)
 
   /* USER CODE END TIM7_Init 1 */
   htim7.Instance = TIM7;
-  htim7.Init.Prescaler = 41999;
+  htim7.Init.Prescaler = 55999;
   htim7.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim7.Init.Period = 20000;
+  htim7.Init.Period = 1000;
   htim7.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim7) != HAL_OK)
   {
@@ -303,10 +309,10 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOE_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_14, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_0|GPIO_PIN_14, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_SET);
+  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_1, GPIO_PIN_RESET);
 
   /*Configure GPIO pin : PC13 */
   GPIO_InitStruct.Pin = GPIO_PIN_13;
@@ -364,115 +370,128 @@ void set_led_state(uint8_t state)
         	break;
     }
 }
-void delay_ms(int ms)
+void detect_button_state(CLICK_STATE click_state)
 {
-	for (int i = 0; i < ms; i++)
-	{
-		htim7.Instance->CNT = 0;
-		HAL_TIM_Base_Start(&htim7);
-		while(htim7.Instance->CNT < 999);
-		HAL_TIM_Base_Stop(&htim7);
-	}
-}
-#ifdef TEST
-#define LONG_PRESS_THRESHOLD 60        // 60 * 50ms = 3000ms = 3s
-
-volatile uint8_t count_click = 0;
-volatile uint8_t buttonPressed = 0;
-volatile uint16_t pressDuration = 0;   // đơn vị: số lần tràn timer 50ms
-volatile uint8_t longPressDetected = 0;
-
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-    if (GPIO_Pin == B1_BUTTON_PIN)
+    switch(click_state)
     {
-        if (HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_RESET) // FALLING - nhấn xuống
-        {
-            buttonPressed = 1;
-            pressDuration = 0;
-            longPressDetected = 0;
-
-            HAL_TIM_Base_Start_IT(&htim6); // bật timer check nhấn giữ
-        }
-        else // RISING - nhả nút
-        {
-            if (buttonPressed)
+        case SINGLE_CLICK:
+        	// Reset to base state (count = 0)
+        	// ONLY if the previous state was HOLD (100).
+        	// This prevents accidental reset when already cycling LEDs.
+        	if (count == 100)
+        		count = 0;
+            break;
+        case DOUBLE_CLICK:
+            // On double click: increase count cyclically (0 → 1 → 2 → 0)
+            // Only increment once per event when "increment" flag is TRUE
+            if (increment)
             {
-                if (!longPressDetected)
-                {
-                    // Xử lý click/double click tại lúc nhả
-                    count_click++;
-                    if (count_click == 2)
-                    {
-                        count = (count + 1) % 3;
-                        set_led_state(count);
-                        count_click = 0; // reset double click
-                    }
-                }
-                buttonPressed = 0;
-                pressDuration = 0;
+                // If all LEDs are OFF because of HOLD, ignore this event
+                // (must be followed by SINGLE_CLICK or ignored completely)
+                if (count == 100)
+                    break;
+                else
+                    count = (count + 1) % 3;
+
+                increment = FALSE; // Reset flag to avoid repeated increments
             }
-        }
+            break;
+        case HOLD:
+            // If button is held: assign a special value (100 → all LEDs OFF)
+            count = 100;
+            break;
+        default:
+            // Do nothing for undefined states
+            break;
     }
 }
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+/**
+ * @brief  External interrupt callback for button press (B1).
+ *
+ * This function is triggered whenever the button pin (B1_BUTTON_PIN)
+ * changes state (pressed or released).
+ *
+ * Logic:
+ *  - On button press (rising edge): count the clicks and start Timer6
+ *    if it's the first click.
+ *  - On button release (falling edge): check how long the button was held
+ *    using Timer6 counter. If it was a short press (< 2000 ticks) and
+ *    at least one click was detected, start Timer7 to evaluate
+ *    single/double click.
+ */
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if (htim->Instance == TIM6)
+    if (GPIO_Pin == B1_BUTTON_PIN)   // Check if interrupt comes from button B1
     {
-        if (buttonPressed)
+        // ----- Button Pressed (Pin is HIGH) -----
+        if (HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_SET)
         {
-            pressDuration++;
-            if (!longPressDetected && pressDuration >= LONG_PRESS_THRESHOLD)
-            {
-                // Nhấn giữ 3s
-                set_led_state(3);   // tắt tất cả LED
-                longPressDetected = 1;
-                count_click = 0; // huỷ luôn double click nếu đã nhấn giữ
-            }
+            click_count++;   // Increase number of clicks detected
+            // Start Timer6 on the first click (used to measure press duration)
+            if (click_count < 2)
+                HAL_TIM_Base_Start_IT(&htim6);
         }
+        // ----- Button Released (Pin is LOW) -----
         else
         {
+            // Read how long the button was pressed using Timer6 counter
+            press_tick = __HAL_TIM_GET_COUNTER(&htim6);
+
+            // If it was a short press (< 2000 ticks) and at least 1 click happened
+            // then start Timer7 to check if this is single or double click
+            if ((press_tick < 2000) && (click_count >= 1))
+            {
+                HAL_TIM_Base_Start_IT(&htim7);
+            }
+            // Reset Timer6 for the next measurement
+            __HAL_TIM_SET_COUNTER(&htim6, 0);
             HAL_TIM_Base_Stop_IT(&htim6);
         }
     }
 }
-#else
-volatile uint8_t count_click = 0;
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-	if ((GPIO_Pin == B1_BUTTON_PIN) && (state == 0))
-	{
-		count_click++;
-		if (count_click == 3)
-			count_click = 1;
-		HAL_TIM_Base_Start_IT(&htim6);
-		state = 1;
-	}
-	else
-	{
-		__NOP();
-	}
-}
+/**
+ * @brief  Timer interrupt callback.
+ *
+ * This function is called when a timer configured in interrupt mode expires.
+ * It is used together with EXTI (button interrupt) to detect:
+ *  - HOLD (long press, via TIM6)
+ *  - SINGLE or DOUBLE CLICK (via TIM7)
+ *
+ * @param  htim: pointer to the timer handle that triggered the interrupt
+ */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-	if (htim->Instance == TIM6)
-	{
-		if(HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_RESET)
-		{
-			if (count_click == 2)
-				count = (count + 1) % 3;
-			state = 0;
-			HAL_TIM_Base_Stop_IT(&htim6);
-		}
-	}
-	if (htim->Instance == TIM7)
-	{
-		count = -1;
-		HAL_TIM_Base_Stop_IT(&htim7);
-	}
-}
-#endif
+    // ----- Timer6: Long press (HOLD detection) -----
+    if (htim->Instance == TIM6)
+    {
+        click_count = 0;       // Reset click counter
+        click_state = HOLD;    // Button is considered "HOLD"
+    }
+    // ----- Timer7: Single / Double click detection -----
+    if (htim->Instance == TIM7)
+    {
+        // If the button is still pressed, stop Timer7 (ignore event)
+        if (HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_SET)
+        {
+            __HAL_TIM_SET_COUNTER(&htim7, 0);
+            HAL_TIM_Base_Stop_IT(&htim7);
+        }
+        // If two clicks happened before timeout → DOUBLE CLICK
+        if (click_count == 2)
+        {
+            click_state = DOUBLE_CLICK;
+            increment = TRUE;   // Allow increment in detect_button_state()
+        }
+        // Otherwise → SINGLE CLICK
+        else
+        {
+            click_state = SINGLE_CLICK;
+        }
 
+        click_count = 0;                  // Reset click counter
+        HAL_TIM_Base_Stop_IT(&htim7);     // Stop Timer7 after classification
+    }
+}
 /* USER CODE END 4 */
 
  /* MPU Configuration */
