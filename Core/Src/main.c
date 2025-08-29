@@ -473,7 +473,7 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     // ----- Timer7: Single / Double click detection -----
     if (htim->Instance == TIM7)
     {
-    	// If more 2 clciks happens -> MULTI CLICK
+    	// If more 2 clicks happens -> MULTI CLICK
         if (click_count > 2)
         {
         	click_state = MULTI_CLICK;
