@@ -426,10 +426,11 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
         // ----- Button Pressed (Pin is HIGH) -----
         if (HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_SET)
         {
-            click_count++;   // Increase number of clicks detected
+        	// Stop Timer7 to detect next action
+        	__HAL_TIM_SET_COUNTER(&htim7, 0);
+        	HAL_TIM_Base_Stop_IT(&htim7);
             // Start Timer6 on the first click (used to measure press duration)
-            if (click_count < 2)
-                HAL_TIM_Base_Start_IT(&htim6);
+            HAL_TIM_Base_Start_IT(&htim6);
         }
         // ----- Button Released (Pin is LOW) -----
         else
@@ -437,10 +438,12 @@ void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
             // Read how long the button was pressed using Timer6 counter
             press_tick = __HAL_TIM_GET_COUNTER(&htim6);
 
-            // If it was a short press (< 2000 ticks) and at least 1 click happened
-            // then start Timer7 to check if this is single or double click
-            if ((press_tick < 2000) && (click_count >= 1))
+            // If the button was pressed for a valid duration (between 50ms and 2000ms)
+            // and at least one click has been registered,
+            // then start Timer7 to determine whether this is a single click or a double click
+            if ((press_tick >= 500) && (press_tick <= 3000))
             {
+            	click_count++;   // Increase number of clicks detected
                 HAL_TIM_Base_Start_IT(&htim7);
             }
             // Reset Timer6 for the next measurement
@@ -470,14 +473,13 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     // ----- Timer7: Single / Double click detection -----
     if (htim->Instance == TIM7)
     {
-        // If the button is still pressed, stop Timer7 (ignore event)
-        if (HAL_GPIO_ReadPin(B1_BUTTON_GPIO_PORT, B1_BUTTON_PIN) == GPIO_PIN_SET)
+    	// If more 2 clciks happens -> MULTI CLICK
+        if (click_count > 2)
         {
-            __HAL_TIM_SET_COUNTER(&htim7, 0);
-            HAL_TIM_Base_Stop_IT(&htim7);
+        	click_state = MULTI_CLICK;
         }
         // If two clicks happened before timeout → DOUBLE CLICK
-        if (click_count == 2)
+        else if (click_count == 2)
         {
             click_state = DOUBLE_CLICK;
             increment = TRUE;   // Allow increment in detect_button_state()

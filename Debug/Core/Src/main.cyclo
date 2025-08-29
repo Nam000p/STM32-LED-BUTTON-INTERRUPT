@@ -5,7 +5,7 @@
 ../Core/Src/main.c:298:13:MX_GPIO_Init	1
 ../Core/Src/main.c:347:6:set_led_state	5
 ../Core/Src/main.c:373:6:detect_button_state	8
-../Core/Src/main.c:422:6:HAL_GPIO_EXTI_Callback	6
-../Core/Src/main.c:462:6:HAL_TIM_PeriodElapsedCallback	5
-../Core/Src/main.c:499:6:MPU_Config	1
-../Core/Src/main.c:530:6:Error_Handler	1
+../Core/Src/main.c:422:6:HAL_GPIO_EXTI_Callback	5
+../Core/Src/main.c:465:6:HAL_TIM_PeriodElapsedCallback	5
+../Core/Src/main.c:501:6:MPU_Config	1
+../Core/Src/main.c:532:6:Error_Handler	1

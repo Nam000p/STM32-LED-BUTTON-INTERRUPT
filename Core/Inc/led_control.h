@@ -66,7 +66,7 @@ typedef volatile enum
 	SINGLE_CLICK,
 	DOUBLE_CLICK,
 	HOLD,
-	RELEASE
+	MULTI_CLICK
 } CLICK_STATE;
 
 typedef enum
