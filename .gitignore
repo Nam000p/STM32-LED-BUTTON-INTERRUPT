@@ -1,0 +1,22 @@
+# Compiled output
+*.o
+*.elf
+*.bin
+*.hex
+
+# Backup/Temp files
+*~
+*.bak
+*.tmp
+
+# IDE specific files (adjust based on your IDE, e.g., CubeIDE, Keil, VS Code)
+.project
+.cproject
+.settings/
+*.ioc # STM32CubeIDE project file, sometimes you want to keep this, but often ignored
+/Debug/
+/Release/
+
+# Operating System files
+.DS_Store
+Thumbs.db
